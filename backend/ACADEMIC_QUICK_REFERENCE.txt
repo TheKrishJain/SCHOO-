@@ -1,0 +1,392 @@
+# pyright: reportUndefinedVariable=false, reportMissingImports=false, reportRedeclaration=false, reportGeneralTypeIssues=false
+"""
+QUICK REFERENCE: Academic Module Features
+
+This file is reference/pseudo-code only and is not meant to be executed.
+Type-checking warnings are disabled to keep the documentation readable in editors.
+"""
+
+# ============================================================================
+# MODULE 1: CLASSES & SECTIONS
+# ============================================================================
+
+class Section:
+    """Represents a class/section in a grade"""
+    
+    # NEW FIELDS:
+    co_class_teacher: ForeignKey  # Optional second teacher
+    room_number: str              # Classroom number (e.g., "10-A", "Lab-1")
+    capacity_locked: bool         # Lock to prevent enrollment changes
+    
+    # NEW PROPERTIES:
+    @property
+    def student_count(self) -> int:
+        """Current number of enrolled students"""
+    
+    @property
+    def can_enroll(self) -> bool:
+        """True if section accepts more students"""
+    
+    # FEATURE TOGGLES:
+    # - FEATURE_CO_CLASS_TEACHER
+    # - FEATURE_SECTION_CAPACITY_LOCK
+    # - FEATURE_BULK_STUDENT_PROMOTION
+
+
+# ============================================================================
+# MODULE 2: SUBJECTS (RULE ENGINE)
+# ============================================================================
+
+class Subject:
+    """Subject definition with academic rules"""
+    
+    # NEW FIELDS:
+    subject_type: str              # CORE / ELECTIVE / ACTIVITY
+    passing_marks: int             # Minimum to pass
+    affects_promotion: bool        # Does it block promotion?
+    included_in_board_report: bool # Show on official report?
+    
+    # USAGE:
+    # - Core subjects block promotion if failed
+    # - Electives are optional
+    # - Activities don't affect board report
+
+
+class SubjectMapping:
+    """Subject assigned to a section with teacher"""
+    
+    # NEW FIELDS:
+    co_teacher: ForeignKey  # Co-teacher (labs, activities)
+    exam_weightage: Decimal  # % of marks from exams (usually 100%)
+    
+    # FEATURE TOGGLES:
+    # - FEATURE_SUBJECT_ELECTIVES
+    # - FEATURE_CO_TEACHER_ASSIGNMENT
+
+
+# ============================================================================
+# MODULE 3: TIMETABLE (DISCIPLINE ENGINE)
+# ============================================================================
+
+class Timetable:
+    """Master schedule for a section"""
+    
+    # NEW FIELDS:
+    is_locked: bool              # Locked? Teacher can't edit
+    locked_by: ForeignKey        # User who locked it
+    
+    # METHODS:
+    def can_modify(self, user) -> bool:
+        """Check if user can modify (Principal override)"""
+
+
+class Period:
+    """Individual class period"""
+    
+    # ENHANCED:
+    @property
+    def assigned_teacher(self):
+        """Returns actual teacher (regular or substitute)"""
+
+
+class TemporarySubstitution:
+    """NEW: Temporary teacher replacement for a period"""
+    
+    period: ForeignKey           # Which period is affected
+    original_teacher: ForeignKey # Regular teacher
+    substitute_teacher: ForeignKey # Replacement
+    date_from: Date              # Start of substitution
+    date_to: Date                # End of substitution
+    reason: str                  # Why the substitution?
+    is_active: bool              # Currently active?
+    approved_by: ForeignKey      # Admin approval required
+    
+    # WORKFLOW:
+    # 1. School admin creates substitution
+    # 2. Admin approves
+    # 3. During date range, substitute teaches the period
+    # 4. Audit log tracks the change
+    
+    # FEATURE TOGGLES:
+    # - FEATURE_TIMETABLE_LOCK
+    # - FEATURE_TEMPORARY_SUBSTITUTIONS
+    # - FEATURE_TIMETABLE_CLASH_DETECTION (advanced)
+
+
+# ============================================================================
+# MODULE 4: SYLLABUS (ACCOUNTABILITY)
+# ============================================================================
+
+class Syllabus:
+    """Syllabus document per subject+section"""
+    
+    @property
+    def progress_percentage(self) -> int:
+        """% of chapters completed"""
+
+
+class Chapter:
+    """Individual chapter in syllabus"""
+    
+    status: str  # NOT_STARTED / IN_PROGRESS / COMPLETED
+    
+    planned_start_date: Date
+    planned_end_date: Date
+    actual_completion_date: Date
+    
+    last_updated_by: ForeignKey  # Which teacher updated?
+    
+    # TEACHER WORKFLOW:
+    # 1. Set status to IN_PROGRESS
+    # 2. Update actual_completion_date
+    # 3. Set status to COMPLETED
+    # Admin sees syllabus lag and pacing comparison
+    
+    # FEATURE TOGGLES:
+    # - FEATURE_SYLLABUS_LAG_ALERTS
+    # - FEATURE_TEACHER_PACING_COMPARISON (advanced)
+
+
+# ============================================================================
+# MODULE 5: EXAMS (CONTROL & DISCIPLINE)
+# ============================================================================
+
+class Exam:
+    """Examination schedule"""
+    
+    # NEW FIELDS:
+    exam_room: str               # Physical location
+    invigilators: ManyToMany     # Teachers supervising
+    min_attendance_percentage: int  # Default 75%
+    grace_marks: int             # Admin-only override
+    
+    # EXAMPLE:
+    exam = Exam(
+        name="Midterm 2025",
+        exam_type="MIDTERM",
+        exam_date="2026-02-15",
+        max_marks=100,
+        passing_marks=40,
+        exam_room="Lab-1",
+        min_attendance_percentage=75,
+        grace_marks=2,  # Admin can override
+    )
+
+
+class Result:
+    """Student marks for an exam (see Module 6 for moderation)"""
+    
+    marks_obtained: Decimal
+    is_absent: bool
+    grade: str  # Auto-calculated: A+/A/B/C/D/F/AB
+    grade_point: Decimal  # Auto-calculated: 4.0/3.7/3.0/2.0/1.0/0.0
+    
+    # MODERATION WORKFLOW:
+    moderation_status: str  # DRAFT / SUBMITTED / APPROVED / LOCKED
+    moderation_by: ForeignKey  # HOD/Admin who approved
+    moderation_remarks: str
+
+
+class ExamAbsenteeLog:
+    """NEW: Track absences and re-exam eligibility"""
+    
+    result: OneToOne  # Links to Result
+    is_eligible_for_reexam: bool
+    re_exam_date: Date
+    re_exam_marks: Decimal
+    
+    # SYSTEM DETERMINES:
+    # - Based on attendance: If min_attendance_percentage met?
+    # - Based on marks: Below passing marks?
+    # - Automatically flag for re-exam
+
+
+class MalpracticeIncident:
+    """NEW: Discipline - Cheating/misconduct during exam"""
+    
+    exam: ForeignKey
+    student: ForeignKey
+    severity: str  # MINOR / MAJOR / SEVERE
+    description: str  # Detailed incident report
+    reported_by: ForeignKey  # Teacher who reported
+    action_taken: str  # Disciplinary outcome
+    approved_by: ForeignKey  # Admin approval
+    
+    # WORKFLOW:
+    # 1. Teacher reports incident with details
+    # 2. Description saved
+    # 3. Admin reviews and approves
+    # 4. Action taken (warning, disqualification, etc.)
+    # 5. Audit trail preserved
+    
+    # FEATURE TOGGLES:
+    # - FEATURE_EXAM_INVIGILATORS
+    # - FEATURE_GRACE_MARKS
+    # - FEATURE_MALPRACTICE_LOGGING
+    # - FEATURE_REEXAM_MANAGEMENT (advanced)
+
+
+# ============================================================================
+# MODULE 6: RESULTS (OUTPUT & TRUST)
+# ============================================================================
+
+class Result:
+    """Complete marks record with moderation"""
+    
+    # MODERATION WORKFLOW:
+    
+    # STEP 1: DRAFT
+    # Teacher enters marks
+    moderation_status = "DRAFT"
+    
+    # STEP 2: SUBMITTED
+    # Teacher clicks "Submit"
+    moderation_status = "SUBMITTED"
+    
+    # STEP 3: APPROVED
+    # HOD/Admin reviews, adds remarks, approves
+    moderation_status = "APPROVED"
+    moderation_by = hod_or_admin
+    moderation_remarks = "Good performance"
+    
+    # STEP 4: LOCKED
+    # System locks - no further changes
+    moderation_status = "LOCKED"
+
+
+class ReportCard:
+    """Term/year academic summary"""
+    
+    # NEW FIELDS:
+    is_locked: bool     # Final state?
+    locked_at: DateTime # When finalized?
+    
+    # AUTO-CALCULATED:
+    total_marks_obtained: Decimal  # Sum of all marks
+    total_marks_possible: Decimal  # Sum of all max_marks
+    percentage: Decimal  # (obtained/possible) * 100
+    grade_awarded: str   # A+ / A / B / C / D / F
+    rank: int           # Position in class (if enabled)
+    
+    # GENERATION:
+    # 1. Admin creates report card for a term
+    # 2. System aggregates all results
+    # 3. Calculates percentage and grade
+    # 4. Computes rank (if feature enabled)
+    # 5. Freezes (is_locked = True)
+    
+    # FEATURE TOGGLES:
+    # - FEATURE_RESULT_MODERATION
+    # - FEATURE_RESULT_LOCKING
+    # - FEATURE_SMART_RANKING (advanced)
+    # - FEATURE_ALUMNI_ACCESS (advanced)
+
+
+# ============================================================================
+# AUDIT & FEATURE SYSTEM
+# ============================================================================
+
+from apps.academics.audit import (
+    log_academic_action,
+    has_feature,
+    can_modify_locked_data,
+    get_section_strength,
+)
+
+# LOG ACADEMIC ACTION:
+log_academic_action(
+    user=request.user,
+    action='UPDATE',
+    obj=section,
+    details="Locked section capacity",
+    ip_address=get_client_ip(request),
+)
+
+# CHECK FEATURE:
+if has_feature(school, 'FEATURE_CO_CLASS_TEACHER'):
+    # Show co-teacher assignment UI
+
+# CHECK LOCKED DATA OVERRIDE:
+if can_modify_locked_data(user, school):
+    # User is principal/admin - can edit locked timetable
+
+
+# ============================================================================
+# COMMON WORKFLOWS
+# ============================================================================
+
+# WORKFLOW 1: Promote students
+# 1. Admin locks section capacity for current class
+# 2. System prevents new enrollments
+# 3. At year-end, bulk promotion moves all students
+# 4. Audit logs each promotion
+
+# WORKFLOW 2: Teacher substitution
+# 1. School admin creates TemporarySubstitution
+# 2. Specifies reason and date range
+# 3. Admin approves
+# 4. Period.assigned_teacher returns substitute
+# 5. Attendance marked to substitute
+# 6. Audit trail preserved
+
+# WORKFLOW 3: Exam with discipline
+# 1. Admin creates exam (room, invigilators, grace marks)
+# 2. Teachers enter marks (moderation: DRAFT)
+# 3. Teachers submit (moderation: SUBMITTED)
+# 4. HOD reviews and approves (moderation: APPROVED)
+# 5. System locks (moderation: LOCKED)
+# 6. If malpractice detected, log incident
+# 7. If eligible for re-exam, flag in ExamAbsenteeLog
+
+# WORKFLOW 4: Report card generation
+# 1. Admin creates ReportCard for term
+# 2. System aggregates all LOCKED Results
+# 3. Calculates grade and rank (if enabled)
+# 4. Freezes (is_locked = True)
+# 5. Student and parent can view
+# 6. Alumni can access forever (if feature enabled)
+
+
+# ============================================================================
+# PERMISSIONS MATRIX
+# ============================================================================
+
+#                     Create  Read    Update  Delete  Admin Override
+# Admin/Principal     YES     YES     YES     YES     YES
+# Teacher             SELF    YES     SELF    NO      NO
+# Student             NO      SELF    NO      NO      NO
+# Parent (if enabled) NO      CHILD   NO      NO      NO
+
+# LOCKED CONTROLS:
+# - Section locked: No enrollment changes (except Admin)
+# - Timetable locked: No period edits (except Principal)
+# - Result locked: No mark changes (except Principal)
+# - ReportCard locked: No regeneration (except Admin)
+
+# FEATURE-BASED:
+# - Co-teacher shown if FEATURE_CO_CLASS_TEACHER enabled
+# - Grace marks visible if FEATURE_GRACE_MARKS enabled
+# - Alumni reports if FEATURE_ALUMNI_ACCESS enabled
+
+
+# ============================================================================
+# DEPLOYMENT CHECKLIST
+# ============================================================================
+
+# [] Migration 0002 applied
+# [] Features seeded (24 total)
+# [] Admin panel tested
+# [] API endpoints working
+# [] Audit logging active
+# [] Permissions tested
+# [] Feature toggles verified
+# [] Documentation reviewed
+
+"""
+Remember:
+- NO breaking changes to existing code ✓
+- ALL modules isolated ✓
+- AUDIT trail preserved ✓
+- FEATURE toggles ready ✓
+- FUTURE extensible ✓
+"""
