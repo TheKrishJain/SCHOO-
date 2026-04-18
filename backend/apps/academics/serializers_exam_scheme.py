@@ -6,7 +6,7 @@ from rest_framework import serializers
 from .models_exam_scheme import (
     ExamScheme, SchemeExam, ExamSubject, ExamInstance, StudentResult
 )
-from apps.academics.models import Grade, Subject, Section, Student
+from apps.academics.models import Subject, Section, Student
 
 
 class SchemeExamSerializer(serializers.ModelSerializer):

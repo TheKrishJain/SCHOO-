@@ -3,9 +3,11 @@ from django.utils import timezone
 from datetime import timedelta
 import json
 from .models import (
-    Grade, Section, Subject, SubjectMapping, Timetable, Period,
+    Section, Subject, SubjectMapping, Timetable, Period,
     Syllabus, Chapter, Exam, Result, ReportCard
 )
+from apps.schools.models_programs import GradeConfiguration
+from apps.schools.serializers_programs import GradeConfigurationSerializer
 from apps.features.services import school_has_feature
 
 
@@ -13,20 +15,12 @@ from apps.features.services import school_has_feature
 # CLASS & SECTION SERIALIZERS
 # ============================================================
 
-class GradeSerializer(serializers.ModelSerializer):
-    sections_count = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = Grade
-        fields = ['id', 'grade_number', 'grade_name', 'is_active', 'sections_count', 'created_at']
-        read_only_fields = ['created_at']
-    
-    def get_sections_count(self, obj):
-        return obj.sections.filter(is_active=True).count()
+# NOTE: GradeSerializer removed - use GradeConfigurationSerializer from schools app
 
 
 class SectionListSerializer(serializers.ModelSerializer):
-    grade_name = serializers.CharField(source='grade.grade_name', read_only=True)
+    grade_name = serializers.CharField(source='grade_config.grade_name', read_only=True)
+    grade_order = serializers.IntegerField(source='grade_config.grade_order', read_only=True)
     class_teacher_name = serializers.CharField(source='class_teacher.user.full_name', read_only=True, allow_null=True)
     student_count = serializers.SerializerMethodField()
     
@@ -39,14 +33,13 @@ class SectionListSerializer(serializers.ModelSerializer):
         # grade and section are stored as strings in StudentEnrollment
         return StudentEnrollment.objects.filter(
             school_id=obj.school_id,
-            grade=str(obj.grade.grade_number),
-            section=obj.section_letter,
+            section=obj,  # Use section directly
             status='ACTIVE'
         ).count()
 
 
 class SectionDetailSerializer(serializers.ModelSerializer):
-    grade_info = GradeSerializer(source='grade', read_only=True)
+    grade_info = GradeConfigurationSerializer(source='grade_config', read_only=True)
     class_teacher_info = serializers.SerializerMethodField()
     subjects = serializers.SerializerMethodField()
     
@@ -76,7 +69,7 @@ class SectionSerializer(serializers.ModelSerializer):
     co_class_teacher_id = serializers.UUIDField(write_only=True, required=False, allow_null=True)
     
     # Read-only display fields
-    grade_name = serializers.CharField(source='grade.grade_name', read_only=True)
+    grade_name = serializers.CharField(source='grade_config.grade_name', read_only=True)
     class_teacher_name = serializers.CharField(source='class_teacher.user.full_name', read_only=True, allow_null=True)
     
     class Meta:
@@ -101,11 +94,18 @@ class SectionSerializer(serializers.ModelSerializer):
         except School.DoesNotExist:
             raise serializers.ValidationError({'school_id': 'School not found'})
         
-        # Validate grade exists and belongs to school
+        # Validate grade config exists
+        grade_id = data.get('grade_config_id') or data.get('grade_id') # Handle both
         try:
-            grade = Grade.objects.get(id=grade_id, school=school)
-        except Grade.DoesNotExist:
-            raise serializers.ValidationError({'grade_id': 'Grade not found or does not belong to this school'})
+             # Use the ID directly, assuming it handles checking against program/school context if needed
+             # or simply verify existence. 
+             # Note: GradeConfiguration links to Program, which links to Campus, which links to School.
+             # Ideally we check the chain.
+            grade_config = GradeConfiguration.objects.get(id=grade_id)
+            if str(grade_config.program.school_id) != str(school_id):
+                 raise serializers.ValidationError({'grade_id': 'Grade does not belong to this school'})
+        except GradeConfiguration.DoesNotExist:
+            raise serializers.ValidationError({'grade_id': 'Grade not found'})
         
         # Validate class teacher if provided
         class_teacher_id = data.get('class_teacher_id')
@@ -128,21 +128,23 @@ class SectionSerializer(serializers.ModelSerializer):
         
         # Check uniqueness
         section_letter = data.get('section_letter')
-        if Section.objects.filter(school_id=school_id, grade_id=grade_id, section_letter=section_letter).exists():
+        # Using grade_config_id (which came in as grade_id)
+        if Section.objects.filter(school_id=school_id, grade_config_id=grade_id, section_letter=section_letter).exists():
             raise serializers.ValidationError(
-                f'Section {section_letter} already exists for {grade.grade_name}'
+                f'Section {section_letter} already exists for {grade_config.grade_name}'
             )
         
         # Store resolved instances
         data['school'] = school
-        data['grade'] = grade
+        data['grade_config'] = grade_config
         
         return data
     
     def create(self, validated_data):
         # Remove write-only ID fields and use resolved instances
         validated_data.pop('school_id', None)
-        validated_data.pop('grade_id', None)
+        validated_data.pop('grade_id', None) # Clean up both names if present
+        validated_data.pop('grade_config_id', None)
         validated_data.pop('class_teacher_id', None)
         validated_data.pop('co_class_teacher_id', None)
         

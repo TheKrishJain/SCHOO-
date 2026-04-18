@@ -5,11 +5,11 @@ from django_filters.rest_framework import DjangoFilterBackend
 from django.db.models import Q, Count
 
 from .models import (
-    Grade, Section, Subject, SubjectMapping, Timetable, Period,
+    Section, Subject, SubjectMapping, Timetable, Period,
     Syllabus, Chapter, Exam, Result, ReportCard
 )
 from .serializers import (
-    GradeSerializer, SectionListSerializer, SectionDetailSerializer, SectionSerializer,
+    SectionListSerializer, SectionDetailSerializer, SectionSerializer,
     SubjectSerializer, SubjectMappingListSerializer, SubjectMappingDetailSerializer,
     TimetableSerializer, PeriodSerializer, SyllabusSerializer, ChapterSerializer,
     ExamSerializer, ResultSerializer, ReportCardSerializer
@@ -19,31 +19,10 @@ from apps.accounts.permission_utils import RBACPermission
 
 
 # ============================================================
-# GRADE VIEW
-# ============================================================
-
-class GradeViewSet(SchoolIsolationMixin, viewsets.ModelViewSet):
-    queryset = Grade.objects.all()
-    serializer_class = GradeSerializer
-    permission_classes = [permissions.IsAuthenticated, RBACPermission]
-    filterset_fields = ['school', 'is_active']
-    school_field = 'school'
-    
-    # RBAC Configuration
-    rbac_module = 'academics'
-    rbac_resource = 'grade'
-    
-    @action(detail=False, methods=['get'])
-    def active_grades(self, request):
-        """Get all active grades for user's school"""
-        queryset = self.get_queryset().filter(is_active=True)
-        serializer = self.get_serializer(queryset, many=True)
-        return Response(serializer.data)
-
-
-# ============================================================
 # SECTION VIEW
 # ============================================================
+# NOTE: GradeViewSet removed - use GradeConfiguration from schools app
+# Grades are now managed through Academic Programs
 
 class SectionViewSet(SchoolIsolationMixin, viewsets.ModelViewSet):
     permission_classes = [permissions.IsAuthenticated, RBACPermission]
@@ -62,7 +41,7 @@ class SectionViewSet(SchoolIsolationMixin, viewsets.ModelViewSet):
         return SectionListSerializer
     
     def get_queryset(self):
-        queryset = Section.objects.prefetch_related('subject_mappings').select_related('grade', 'class_teacher')
+        queryset = Section.objects.prefetch_related('subject_mappings').select_related('grade_config', 'class_teacher')
         # Apply school isolation
         school_filter = self.get_school_filter()
         if school_filter:

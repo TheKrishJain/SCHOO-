@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from django.db import transaction
 from apps.schools.models import ExamType
-from apps.academics.models import Exam, Subject, Section, Grade
+from apps.academics.models import Exam, Subject, Section
 from apps.core.school_isolation import SchoolIsolationMixin, IsSchoolAdminOrPlatformAdmin
 from django.core.exceptions import ValidationError
 

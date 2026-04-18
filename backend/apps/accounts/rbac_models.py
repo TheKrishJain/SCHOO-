@@ -226,7 +226,7 @@ class UserRole(models.Model):
     
     # Optional scope limitations
     grade_scope = models.ForeignKey(
-        'academics.Grade',
+        'schools.GradeConfiguration',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,

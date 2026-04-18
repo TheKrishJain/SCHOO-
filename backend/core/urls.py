@@ -35,6 +35,9 @@ urlpatterns = [
     # Platform Management
     path('api/v1/platform/', include('apps.platform_admin.urls')),
     
+    # Platform Owner (Super Admin)
+    path('api/v1/owner/', include('apps.owner.urls')),
+    
     # System
     path('api/v1/audit/', include('apps.audit.urls')),
     

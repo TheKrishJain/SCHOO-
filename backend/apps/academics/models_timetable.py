@@ -16,7 +16,8 @@ This module handles:
 from django.db import models
 from apps.schools.models import School
 from apps.teachers.models import Teacher
-from apps.academics.models import Subject, Grade, Section
+from apps.academics.models import Subject, Section
+from apps.schools.models_programs import GradeConfiguration
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 import uuid
@@ -103,7 +104,7 @@ class TimetableEntry(models.Model):
     subject = models.ForeignKey(Subject, on_delete=models.CASCADE, related_name='timetable_entries')
     
     # Where
-    grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name='timetable_entries')
+    grade = models.ForeignKey(GradeConfiguration, on_delete=models.CASCADE, related_name='timetable_entries', null=True, blank=True)
     section = models.ForeignKey(Section, on_delete=models.CASCADE, related_name='timetable_entries')
     room_number = models.CharField(max_length=20, blank=True)
     

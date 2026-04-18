@@ -57,6 +57,7 @@ INSTALLED_APPS = [
      'apps.finance',
      'apps.platform_admin',
      'apps.notifications',
+     'apps.owner',  # Platform Owner System
    
 ]
 

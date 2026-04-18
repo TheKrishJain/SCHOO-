@@ -1,6 +1,6 @@
 from django.test import TestCase
 from apps.schools.models import School
-from apps.academics.models import Grade, Section
+from apps.academics.models import Section
 from apps.students.models import Student
 from apps.accounts.models import User
 from apps.enrollments.models import StudentEnrollment

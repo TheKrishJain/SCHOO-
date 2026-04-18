@@ -87,7 +87,7 @@ class SubjectExam(models.Model):
     
     term = models.ForeignKey(ExamTerm, on_delete=models.CASCADE, related_name='subject_exams')
     subject = models.ForeignKey('Subject', on_delete=models.CASCADE, related_name='exams')
-    grade = models.ForeignKey('Grade', on_delete=models.CASCADE, related_name='exams')
+    grade = models.ForeignKey('schools.GradeConfiguration', on_delete=models.CASCADE, related_name='exams', null=True, blank=True)
     
     exam_date = models.DateField()
     duration_minutes = models.PositiveIntegerField(default=60)
@@ -173,7 +173,7 @@ class StudentMark(models.Model):
     
     class Meta:
         unique_together = ['exam', 'student']
-        ordering = ['exam__exam_date', 'student__user__full_name']
+        ordering = ['exam__exam_date', 'student__user__first_name']
     
     def save(self, *args, **kwargs):
         """Auto-calculate percentage, grade, and pass status"""
@@ -393,7 +393,7 @@ class AnnualResult(models.Model):
     
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='annual_results')
     academic_year = models.CharField(max_length=9)
-    grade = models.ForeignKey('Grade', on_delete=models.CASCADE, related_name='annual_results')
+    grade = models.ForeignKey('schools.GradeConfiguration', on_delete=models.CASCADE, related_name='annual_results', null=True, blank=True)
     
     # Aggregate from all terms
     final_percentage = models.DecimalField(max_digits=5, decimal_places=2, default=0)

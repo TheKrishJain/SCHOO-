@@ -80,7 +80,8 @@ class StudentSerializer(serializers.ModelSerializer):
              raise serializers.ValidationError({"detail": "School configuration missing."})
 
         # 3. Get or create Grade and Section (validate they exist but store as strings)
-        from apps.academics.models import Grade, Section
+        from apps.academics.models import Section
+        from apps.schools.models_programs import GradeConfiguration
         try:
             grade_obj = Grade.objects.get(school=school, grade_number=int(grade_number))
         except (Grade.DoesNotExist, ValueError):

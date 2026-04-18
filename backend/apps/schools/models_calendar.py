@@ -5,7 +5,7 @@ import uuid
 class Holiday(models.Model):
     """School holidays - days when school is closed"""
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    school = models.ForeignKey('schools.School', on_delete=models.CASCADE, related_name='holidays')
+    school = models.ForeignKey('schools.School', on_delete=models.CASCADE, related_name='school_holidays')
     name = models.CharField(max_length=255, help_text="Holiday name (e.g., Republic Day)")
     date = models.DateField()
     description = models.TextField(blank=True)

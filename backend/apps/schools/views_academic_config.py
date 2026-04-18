@@ -114,7 +114,7 @@ class ExamTypeViewSet(SchoolIsolationMixin, viewsets.ModelViewSet):
             "academic_year": "2025-2026"
         }
         """
-        from apps.academics.models import Exam, Subject, Grade
+        from apps.academics.models import Exam, Subject
         
         exam_type_id = request.data.get('exam_type_id')
         grade_id = request.data.get('grade_id')

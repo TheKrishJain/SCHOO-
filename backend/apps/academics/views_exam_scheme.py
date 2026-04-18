@@ -24,7 +24,7 @@ from django.db import transaction
 from django.db.models import Count, Q, F
 
 from apps.core.school_isolation import SchoolIsolationMixin, get_user_school, is_platform_admin
-from apps.academics.models import Grade, Subject, Section, Student
+from apps.academics.models import Subject, Section, Student
 from .models_exam_scheme import (
     ExamScheme, SchemeExam, ExamSubject, ExamInstance, StudentResult
 )

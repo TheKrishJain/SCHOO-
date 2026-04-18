@@ -11,24 +11,43 @@ from decimal import Decimal
 # 1. CLASS & SECTION ARCHITECTURE
 # ============================================================
 
-class Grade(models.Model):
-    """
-    A Grade level (1-12) in the school.
-    """
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='grades')
-    grade_number = models.PositiveIntegerField()  # 1-12
-    grade_name = models.CharField(max_length=50)  # e.g., "Grade 10"
-    
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
+# ============================================================
+# DEPRECATED: Old Grade Model
+# ============================================================
+# The Grade model below has been DEPRECATED and replaced by
+# GradeConfiguration from apps.schools.models_programs
+#
+# OLD SYSTEM: Simple integer grades (1-12)
+# NEW SYSTEM: Program-based grades with TEXT names (LKG, UKG, 1-12)
+#
+# Migration: All references updated to use GradeConfiguration
+# - Section.grade → Section.grade_config
+# - ResultPromotionRule.grade → ResultPromotionRule.grade_config
+# - StudentPromotionDecision.from_grade/to_grade → from_grade_config/to_grade_config
+#
+# This model is kept temporarily for reference during migration.
+# Will be removed after successful migration verification.
+# ============================================================
 
-    class Meta:
-        unique_together = ('school', 'grade_number')
-        ordering = ['grade_number']
-
-    def __str__(self):
-        return f"{self.grade_name}"
+# class Grade(models.Model):
+#     """
+#     DEPRECATED: Use GradeConfiguration from apps.schools.models_programs instead
+#     A Grade level (1-12) in the school.
+#     """
+#     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+#     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='grades')
+#     grade_number = models.PositiveIntegerField()  # 1-12
+#     grade_name = models.CharField(max_length=50)  # e.g., "Grade 10"
+#     
+#     is_active = models.BooleanField(default=True)
+#     created_at = models.DateTimeField(auto_now_add=True)
+#
+#     class Meta:
+#         unique_together = ('school', 'grade_number')
+#         ordering = ['grade_number']
+#
+#     def __str__(self):
+#         return f"{self.grade_name}"
 
 
 class Section(models.Model):
@@ -40,7 +59,14 @@ class Section(models.Model):
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='sections')
-    grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name='sections')
+    
+    # NEW: Link to GradeConfiguration (program-based grade system)
+    grade_config = models.ForeignKey(
+        'schools.GradeConfiguration',
+        on_delete=models.CASCADE,
+        related_name='sections',
+        help_text="Grade configuration from academic program"
+    )
     
     section_letter = models.CharField(max_length=5)  # A, B, C, etc.
     capacity = models.PositiveIntegerField(default=50)
@@ -59,23 +85,38 @@ class Section(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ('school', 'grade', 'section_letter')
-        ordering = ['grade__grade_number', 'section_letter']
+        unique_together = ('school', 'grade_config', 'section_letter')
+        ordering = ['grade_config__grade_order', 'section_letter']
 
     def __str__(self):
-        return f"{self.grade.grade_name} - {self.section_letter}"
+        return f"{self.grade_config.grade_name} - {self.section_letter}"
 
     @property
     def full_name(self):
-        return f"{self.grade.grade_number}-{self.section_letter}"
+        return f"{self.grade_config.grade_name}-{self.section_letter}"
+    
+    # Backward compatibility properties
+    @property
+    def grade_name(self):
+        """Backward compatibility: get grade name"""
+        return self.grade_config.grade_name
+    
+    @property
+    def grade_order(self):
+        """Get numeric order for sorting"""
+        return self.grade_config.grade_order
+    
+    @property
+    def program(self):
+        """Get associated academic program"""
+        return self.grade_config.program
     
     @property
     def student_count(self):
         """Get current student count from enrollments"""
         from apps.enrollments.models import StudentEnrollment
         return StudentEnrollment.objects.filter(
-            grade=self.grade.grade_number,
-            section=self.section_letter,
+            section=self,
             status='ACTIVE'
         ).count()
     
@@ -583,10 +624,19 @@ class ResultPromotionRule(models.Model):
     """
     Define promotion criteria based on exam results for a grade/board.
     Controls pass/fail thresholds, compartment limits, re-exam rules.
+    
+    NOW USES: GradeConfiguration (program-based grade system)
     """
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     school = models.ForeignKey(School, on_delete=models.CASCADE, related_name='result_promotion_rules')
-    grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name='result_promotion_rules')
+    
+    # NEW: Link to GradeConfiguration
+    grade_config = models.ForeignKey(
+        'schools.GradeConfiguration',
+        on_delete=models.CASCADE,
+        related_name='promotion_rules',
+        help_text="Grade configuration from academic program"
+    )
     academic_year = models.CharField(max_length=9, default='2025-2026')
     
     # Overall criteria
@@ -611,17 +661,19 @@ class ResultPromotionRule(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        unique_together = ('school', 'grade', 'academic_year')
-        ordering = ['grade__grade_number']
+        unique_together = ('school', 'grade_config', 'academic_year')
+        ordering = ['grade_config__grade_order']
     
     def __str__(self):
-        return f"Result Promotion Rule - {self.grade.grade_name} ({self.academic_year})"
+        return f"Result Promotion Rule - {self.grade_config.grade_name} ({self.academic_year})"
 
 
 class StudentPromotionDecision(models.Model):
     """
     Final promotion decision for a student in an academic year.
     Generated after all exam results are published.
+    
+    NOW USES: GradeConfiguration (program-based grade system)
     """
     DECISION_STATUS = [
         ('PROMOTED', 'Promoted to Next Grade'),
@@ -632,8 +684,22 @@ class StudentPromotionDecision(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     student = models.ForeignKey(Student, on_delete=models.CASCADE, related_name='promotion_decisions')
     academic_year = models.CharField(max_length=9)
-    from_grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name='promotion_from')
-    to_grade = models.ForeignKey(Grade, on_delete=models.CASCADE, related_name='promotion_to', null=True, blank=True)
+    
+    # NEW: Link to GradeConfiguration
+    from_grade_config = models.ForeignKey(
+        'schools.GradeConfiguration',
+        on_delete=models.CASCADE,
+        related_name='promotions_from',
+        help_text="Grade configuration student is being promoted from"
+    )
+    to_grade_config = models.ForeignKey(
+        'schools.GradeConfiguration',
+        on_delete=models.CASCADE,
+        related_name='promotions_to',
+        null=True,
+        blank=True,
+        help_text="Grade configuration student is being promoted to"
+    )
     
     # Decision
     overall_status = models.CharField(max_length=20, choices=DECISION_STATUS)
@@ -655,11 +721,15 @@ class StudentPromotionDecision(models.Model):
     
     class Meta:
         unique_together = ('student', 'academic_year')
-        ordering = ['-academic_year', 'student__user__first_name']
+        ordering = ['-academic_year', '-created_at']
     
     def __str__(self):
-        return f"{self.student.user.full_name} - {self.academic_year} - {self.overall_status}"
+        return f"{self.student.first_name} {self.student.last_name} - {self.academic_year} - {self.overall_status}"
 
 
 # Import assignment models
 from .models_assignments import Assignment, AssignmentSubmission
+from .models_certificates import *
+from .models_exam_scheme import *
+from .models_result_system import *
+from .models_timetable import *

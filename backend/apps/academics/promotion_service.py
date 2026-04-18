@@ -37,33 +37,34 @@ class PromotionService:
     
     def _get_promotion_rule(self) -> ResultPromotionRule:
         """Get applicable promotion rule for student's grade"""
-        from apps.academics.models import Grade
+        from apps.schools.models_programs import GradeConfiguration
         
         # Get grade object
-        grade = Grade.objects.filter(
-            grade_number=int(self.enrollment.grade)
+        # Assuming enrollment.grade contains the grade number/order as string
+        grade_config = GradeConfiguration.objects.filter(
+            grade_order=int(self.enrollment.grade) 
         ).first()
         
-        if not grade:
-            raise ValueError(f"Grade {self.enrollment.grade} not found")
+        if not grade_config:
+            raise ValueError(f"Grade configuration for {self.enrollment.grade} not found")
         
         rule = ResultPromotionRule.objects.filter(
-            grade=grade,
+            grade_config=grade_config,
             academic_year=self.academic_year,
             is_active=True
         ).first()
         
         if not rule:
             # Return default rule if none configured
-            return self._get_default_rule(grade)
+            return self._get_default_rule(grade_config)
         
         return rule
     
-    def _get_default_rule(self, grade) -> ResultPromotionRule:
+    def _get_default_rule(self, grade_config) -> ResultPromotionRule:
         """Create a default rule if none exists"""
         rule = ResultPromotionRule(
             school_id=self.enrollment.school_id,
-            grade=grade,
+            grade_config=grade_config,
             academic_year=self.academic_year,
             min_overall_percentage=Decimal('40.00'),
             min_attendance_percentage=Decimal('75.00'),
@@ -248,14 +249,14 @@ class PromotionService:
         if not decision_data.get('subjects') or len(decision_data.get('subjects', [])) == 0:
             raise ValueError('Cannot finalize decision without exam results')
         
-        from apps.academics.models import Grade
-        from_grade = Grade.objects.filter(grade_number=int(self.enrollment.grade)).first()
+        from apps.schools.models_programs import GradeConfiguration
+        from_grade_config = GradeConfiguration.objects.filter(grade_order=int(self.enrollment.grade)).first()
         
         # Determine to_grade based on decision
-        to_grade = None
+        to_grade_config = None
         if decision_data['decision']['status'] == 'PROMOTED':
             next_grade_num = int(self.enrollment.grade) + 1
-            to_grade = Grade.objects.filter(grade_number=next_grade_num).first()
+            to_grade_config = GradeConfiguration.objects.filter(grade_order=next_grade_num).first()
         
         # Build subject-wise JSON
         subject_wise = {
@@ -283,8 +284,8 @@ class PromotionService:
             student=self.student,
             academic_year=self.academic_year,
             defaults={
-                'from_grade': from_grade,
-                'to_grade': to_grade,
+                'from_grade_config': from_grade_config,
+                'to_grade_config': to_grade_config,
                 'overall_status': decision_data['decision']['status'],
                 'overall_percentage': decision_data['overall_percentage'],
                 'subject_wise_status': subject_wise,

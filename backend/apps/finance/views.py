@@ -33,7 +33,7 @@ from .serializers import (
 )
 from apps.accounts.permission_utils import RBACPermission
 from apps.students.models import Student
-from apps.academics.models import Grade, Section
+from apps.academics.models import Section
 from apps.enrollments.models import StudentEnrollment
 
 

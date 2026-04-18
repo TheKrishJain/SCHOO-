@@ -11,10 +11,12 @@ from .models_promotion import (
     PromotionRecord, DataCarryForward
 )
 from .models import StudentEnrollment
+from apps.students.models import StudentHistory
 from .serializers_promotion import (
     AcademicYearSerializer, PromotionRuleSerializer,
     PromotionBatchSerializer, PromotionRecordSerializer,
-    DataCarryForwardSerializer, PromotionPreviewSerializer
+    DataCarryForwardSerializer, PromotionPreviewSerializer,
+    MergedHistorySerializer, StudentHistorySnapshotSerializer
 )
 
 
@@ -273,6 +275,25 @@ class PromotionBatchViewSet(viewsets.ModelViewSet):
                 try:
                     enrollment = StudentEnrollment.objects.get(id=item['enrollment_id'])
                     
+                    # --- CRITICAL: Create Student History Snapshot ---
+                    # Defines the state of the student *before* this promotion happens
+                    StudentHistory.objects.create(
+                        student=enrollment.student,
+                        school=enrollment.school,
+                        academic_year=academic_year,  # Use the instance from the batch context
+                        academic_year_name=enrollment.academic_year, # CharField
+                        grade=enrollment.student.current_grade,
+                        grade_name=item['current_grade'],
+                        section=enrollment.student.current_section,
+                        section_name=item['current_section'],
+                        roll_number=enrollment.roll_number,
+                        promoted=(item['action'] == 'PROMOTED'),
+                        promotion_remarks=item.get('reason', ''),
+                        # We snapshot the photo at this moment
+                        profile_photo_at_time=enrollment.student.profile_photo
+                    )
+                    # -----------------------------------------------
+
                     # Create promotion record
                     record = PromotionRecord.objects.create(
                         batch=batch,
@@ -343,6 +364,34 @@ class PromotionBatchViewSet(viewsets.ModelViewSet):
             'graduated': graduated,
             'failed': failed
         })
+
+
+class MergedHistoryViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    API endpoint for Year-End History Tab
+    Returns simple student snapshots for a given academic year
+    """
+    queryset = StudentHistory.objects.all()
+    serializer_class = StudentHistorySnapshotSerializer
+    permission_classes = [IsAuthenticated]
+    
+    def get_queryset(self):
+        """Filter by academic year and school"""
+        queryset = super().get_queryset()
+        academic_year_code = self.request.query_params.get('academic_year')
+        school_id = self.request.query_params.get('school')
+        
+        if academic_year_code:
+            queryset = queryset.filter(academic_year_name=academic_year_code)
+        
+        if school_id:
+            queryset = queryset.filter(school_id=school_id)
+        
+        # Order by student name for consistent display
+        queryset = queryset.select_related('student', 'student__user', 'grade', 'section')
+        queryset = queryset.order_by('student__user__first_name', 'student__user__last_name')
+        
+        return queryset
 
 
 class DataCarryForwardViewSet(viewsets.ModelViewSet):

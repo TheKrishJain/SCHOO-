@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import (
-    Grade, Section, Subject, SubjectMapping, Timetable, Period, TemporarySubstitution,
+    Section, Subject, SubjectMapping, Timetable, Period, TemporarySubstitution,
     Syllabus, Chapter, Exam, Result, ReportCard, ExamAbsenteeLog, MalpracticeIncident
 )
 from .models_exam_scheme import (
@@ -8,23 +8,17 @@ from .models_exam_scheme import (
 )
 
 
-@admin.register(Grade)
-class GradeAdmin(admin.ModelAdmin):
-    list_display = ['grade_number', 'grade_name', 'school', 'is_active', 'created_at']
-    list_filter = ['school', 'is_active', 'created_at']
-    search_fields = ['grade_name', 'school__name']
-    readonly_fields = ['id', 'created_at']
-
+# NOTE: GradeAdmin removed - Grades are now managed via GradeConfiguration in schools app
 
 @admin.register(Section)
 class SectionAdmin(admin.ModelAdmin):
-    list_display = ['full_name', 'grade', 'section_letter', 'capacity', 'class_teacher', 'capacity_locked', 'is_active']
-    list_filter = ['school', 'grade', 'is_active', 'capacity_locked']
-    search_fields = ['section_letter', 'grade__grade_name', 'school__name']
+    list_display = ['full_name', 'grade_config', 'section_letter', 'capacity', 'class_teacher', 'capacity_locked', 'is_active']
+    list_filter = ['school', 'grade_config', 'is_active', 'capacity_locked']
+    search_fields = ['section_letter', 'grade_config__grade_name', 'school__name']
     readonly_fields = ['id', 'created_at']
     fieldsets = (
         ('Basic Info', {
-            'fields': ('id', 'school', 'grade', 'section_letter', 'room_number', 'created_at')
+            'fields': ('id', 'school', 'grade_config', 'section_letter', 'room_number', 'created_at')
         }),
         ('Teachers', {
             'fields': ('class_teacher', 'co_class_teacher')

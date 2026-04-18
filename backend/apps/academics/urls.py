@@ -1,7 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
-    GradeViewSet, SectionViewSet, SubjectViewSet, SubjectMappingViewSet,
+    SectionViewSet, SubjectViewSet, SubjectMappingViewSet,
     TimetableViewSet, PeriodViewSet, SyllabusViewSet, ChapterViewSet,
     ExamViewSet, ResultViewSet, ReportCardViewSet
 )
@@ -18,7 +18,7 @@ from .views_assignments import AssignmentViewSet, AssignmentSubmissionViewSet
 router = DefaultRouter()
 
 # Class & Section Management
-router.register(r'grades', GradeViewSet, basename='grade')
+# router.register(r'grades', GradeViewSet, basename='grade')  # Removed - use schools/programs/grades
 router.register(r'sections', SectionViewSet, basename='section')
 
 # Subject Management

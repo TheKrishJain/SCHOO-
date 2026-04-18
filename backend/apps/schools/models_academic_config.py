@@ -109,9 +109,11 @@ class GradeTermConfig(models.Model):
         related_name='grade_term_configs'
     )
     grade = models.ForeignKey(
-        'academics.Grade',
+        'schools.GradeConfiguration',
         on_delete=models.CASCADE,
-        related_name='term_configs'
+        related_name='term_configs',
+        null=True,
+        blank=True
     )
     
     # Term Structure
@@ -219,9 +221,11 @@ class GradeExamStructure(models.Model):
         related_name='grade_exam_structures'
     )
     grade = models.ForeignKey(
-        'academics.Grade',
+        'schools.GradeConfiguration',
         on_delete=models.CASCADE,
-        related_name='exam_structures'
+        related_name='exam_structures',
+        null=True,
+        blank=True
     )
     exam_type = models.ForeignKey(
         ExamType,

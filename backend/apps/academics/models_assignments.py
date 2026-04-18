@@ -27,9 +27,11 @@ class Assignment(models.Model):
     
     # Target audience
     grade = models.ForeignKey(
-        'academics.Grade',
+        'schools.GradeConfiguration',
         on_delete=models.CASCADE,
-        related_name='assignments'
+        related_name='assignments',
+        null=True,
+        blank=True
     )
     section = models.ForeignKey(
         'academics.Section',

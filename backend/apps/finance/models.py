@@ -78,7 +78,7 @@ class FeeStructure(models.Model):
     school = models.ForeignKey('schools.School', on_delete=models.CASCADE, related_name='fee_structures')
     
     name = models.CharField(max_length=100)  # e.g., "Grade 10 Fee Structure 2025-26"
-    grade = models.ForeignKey('academics.Grade', on_delete=models.CASCADE, related_name='fee_structures', null=True, blank=True)
+    grade = models.ForeignKey('schools.GradeConfiguration', on_delete=models.CASCADE, related_name='fee_structures', null=True, blank=True)
     academic_year = models.CharField(max_length=20)  # e.g., "2025-2026"
     
     # Base annual fees
@@ -111,7 +111,7 @@ class FeeStructure(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='fee_structures_created')
     
     class Meta:
-        ordering = ['-academic_year', 'grade__grade_number']
+        ordering = ['-academic_year', 'grade__grade_order']
         unique_together = ['school', 'grade', 'academic_year']
     
     def __str__(self):
@@ -219,7 +219,7 @@ class StudentFeeAssignment(models.Model):
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name='fee_assignments_created')
     
     class Meta:
-        ordering = ['-academic_year', 'student__user__first_name']
+        ordering = ['-academic_year', '-created_at']
         unique_together = ['student', 'academic_year']
     
     def __str__(self):
@@ -547,7 +547,7 @@ class BulkFeeAssignment(models.Model):
     academic_year = models.CharField(max_length=20)
     
     # Target
-    target_grade = models.ForeignKey('academics.Grade', on_delete=models.CASCADE, null=True, blank=True)
+    target_grade = models.ForeignKey('schools.GradeConfiguration', on_delete=models.CASCADE, null=True, blank=True)
     target_section = models.ForeignKey('academics.Section', on_delete=models.CASCADE, null=True, blank=True)
     
     # What to assign
@@ -801,7 +801,7 @@ class LateFeeRule(models.Model):
     
     # Applicability
     applies_to_all = models.BooleanField(default=True)
-    specific_grades = models.ManyToManyField('academics.Grade', blank=True, related_name='late_fee_rules')
+    specific_grades = models.ManyToManyField('schools.GradeConfiguration', blank=True, related_name='late_fee_rules')
     
     is_active = models.BooleanField(default=True)
     

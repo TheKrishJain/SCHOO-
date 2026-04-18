@@ -52,8 +52,26 @@ class Student(models.Model):
     phone = models.CharField(max_length=20, null=True, blank=True, help_text="Student's personal phone if any")
     
     # --- ACADEMIC ---
-    current_grade = models.ForeignKey('academics.Grade', on_delete=models.SET_NULL, null=True, blank=True, related_name='current_students')
+    # --- ACADEMIC ---
+    # Grade is now derived from Section -> GradeConfiguration
+    # For students without section, we can optionally link to GradeConfiguration directly
+    grade_config = models.ForeignKey(
+        'schools.GradeConfiguration', 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='students',
+        help_text="Current grade level"
+    )
     current_section = models.ForeignKey('academics.Section', on_delete=models.SET_NULL, null=True, blank=True, related_name='current_students')
+    
+    @property
+    def current_grade(self):
+        """Backward compatibility"""
+        if self.current_section:
+            return self.current_section.grade_config
+        return self.grade_config
+
     admission_date = models.DateField(null=True, blank=True)
     graduation_date = models.DateField(null=True, blank=True)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='ACTIVE')
@@ -160,7 +178,7 @@ class StudentHistory(models.Model):
     school = models.ForeignKey('schools.School', on_delete=models.CASCADE, null=True, blank=True)
     academic_year = models.ForeignKey('enrollments.AcademicYear', on_delete=models.CASCADE, null=True, blank=True)
     academic_year_name = models.CharField(max_length=20, null=True, blank=True, help_text="e.g. 2024-2025")
-    grade = models.ForeignKey('academics.Grade', on_delete=models.CASCADE, null=True, blank=True)
+    grade_config = models.ForeignKey('schools.GradeConfiguration', on_delete=models.CASCADE, null=True, blank=True, related_name='student_history')
     grade_name = models.CharField(max_length=20, null=True, blank=True, help_text="e.g. 10, LKG")
     section = models.ForeignKey('academics.Section', on_delete=models.CASCADE, null=True, blank=True)
     section_name = models.CharField(max_length=5, null=True, blank=True, help_text="e.g. A, B")

@@ -36,10 +36,11 @@ class ExamScheme(models.Model):
         on_delete=models.CASCADE,
         related_name='exam_schemes'
     )
-    grade = models.ForeignKey(
-        'academics.Grade',
+    grade_config = models.ForeignKey(
+        'schools.GradeConfiguration',
         on_delete=models.CASCADE,
-        related_name='exam_schemes'
+        related_name='exam_schemes',
+        help_text="Grade level for this scheme"
     )
     academic_year = models.CharField(
         max_length=9,
@@ -72,12 +73,12 @@ class ExamScheme(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
-        unique_together = ('school', 'grade', 'academic_year')
-        ordering = ['-academic_year', 'grade']
+        unique_together = ('school', 'grade_config', 'academic_year')
+        ordering = ['-academic_year', 'grade_config']
         verbose_name = 'Exam Scheme'
     
     def __str__(self):
-        return f"{self.grade.grade_name} - {self.academic_year} ({self.school.name})"
+        return f"{self.grade_config.grade_name} - {self.academic_year} ({self.school.name})"
     
     def get_total_marks(self):
         """Get total marks across all exams in this scheme"""
@@ -284,9 +285,11 @@ class ExamInstance(models.Model):
     
     # Derived info for quick access
     grade = models.ForeignKey(
-        'academics.Grade',
+        'schools.GradeConfiguration',
         on_delete=models.CASCADE,
-        related_name='exam_instances'
+        related_name='exam_instances',
+        null=True,
+        blank=True
     )
     school = models.ForeignKey(
         'schools.School',

@@ -1,6 +1,7 @@
 from collections import defaultdict
 from django.db import transaction
-from apps.academics.models import Section, Grade
+from apps.academics.models import Section
+from apps.schools.models_programs import GradeConfiguration
 from .models import PromotionBatch, PromotionAssignment, PromotionAudit, AcademicHistory
 
 
